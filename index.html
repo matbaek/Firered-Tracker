@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FireRed Tracker</title>
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body { font-family: Arial; background:#111; color:#eee; padding:15px; }
+h1 { text-align:center; }
+
+.tabs { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+.tab { padding:8px 12px; background:#333; border-radius:8px; cursor:pointer; }
+.active { background:#4caf50; }
+
+.section { background:#1e1e1e; padding:12px; margin-bottom:12px; border-radius:10px; }
+.grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(140px,1fr)); gap:6px; }
+
+.summary { background:#222; padding:10px; border-radius:10px; margin-bottom:10px; }
+
+input[type="text"] { width:100%; padding:8px; margin-bottom:10px; border-radius:8px; border:none; }
+</style>
+</head>
+
+<body>
+
+<h1>FireRed Tracker</h1>
+
+<div class="tabs">
+  <div class="tab active" onclick="setTab('game', this)">🎮 Game</div>
+  <div class="tab" onclick="setTab('kanto', this)">📘 Kanto</div>
+  <div class="tab" onclick="setTab('johto', this)">🟢 Johto</div>
+  <div class="tab" onclick="setTab('hoenn', this)">🔵 Hoenn</div>
+</div>
+
+<div class="summary">
+  <div>🎮 Game Progress: <span id="gameProgress">0</span>%</div>
+  <div>📘 Dex Progress: <span id="dexProgress">0</span>%</div>
+</div>
+
+<input type="text" id="search" placeholder="🔍 Search..." oninput="filter()">
+
+<div id="app"></div>
+
+<script>
+let currentTab = "game";
+
+const sections = [
+  {name:"Main Story", tab:"game", items:["Brock","Misty","Lt Surge","Erika","Koga","Sabrina","Blaine","Giovanni","Elite Four","Champion"]},
+  {name:"Sevii Islands", tab:"game", items:["One","Two","Three","Four","Five","Six","Seven","Ruby","Sapphire"]},
+  {name:"Legendaries", tab:"game", items:["Mewtwo","Articuno","Zapdos","Moltres","Roaming"]},
+  {name:"Elite Four Rematch", tab:"game", items:["Rematch"]},
+  {name:"Kanto Dex", tab:"kanto", range:[1,151]},
+  {name:"Johto Dex", tab:"johto", range:[152,251]},
+  {name:"Hoenn Dex", tab:"hoenn", range:[252,386]}
+];
+
+function setTab(tab, el){
+  currentTab = tab;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  el.classList.add("active");
+  render();
+}
+
+function save(id,val){ localStorage.setItem(id,val); }
+function load(id){ return localStorage.getItem(id)==="true"; }
+
+function render(){
+  const app = document.getElementById("app");
+  app.innerHTML="";
+
+  sections.forEach((s,i)=>{
+    if(s.tab!==currentTab) return;
+
+    const div=document.createElement("div");
+    div.className="section";
+
+    const h=document.createElement("h3");
+    h.innerText=s.name;
+    div.appendChild(h);
+
+    const grid=document.createElement("div");
+    grid.className="grid";
+
+    let items=[];
+    if(s.items){ items=s.items; }
+    else{ for(let n=s.range[0];n<=s.range[1];n++) items.push("#"+n); }
+
+    items.forEach((item,j)=>{
+      const id=i+"-"+j;
+      const label=document.createElement("label");
+      const cb=document.createElement("input");
+      cb.type="checkbox";
+      cb.checked=load(id);
+      cb.onchange=()=>save(id,cb.checked);
+      label.appendChild(cb);
+      label.append(" "+item);
+      grid.appendChild(label);
+    });
+
+    div.appendChild(grid);
+    app.appendChild(div);
+  });
+}
+
+function filter(){
+  const q=document.getElementById("search").value.toLowerCase();
+  document.querySelectorAll("label").forEach(l=>{
+    l.style.display=l.innerText.toLowerCase().includes(q)?"block":"none";
+  });
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+
+render();
+</script>
+
+</body>
+</html>
