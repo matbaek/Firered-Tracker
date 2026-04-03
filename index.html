@@ -2,35 +2,49 @@
 
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FireRed Ultimate Tracker</title>
-<link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FireRed Ultimate Tracker</title>
+  <link rel="manifest" href="manifest.json">
 
-<style>
-body { font-family: Arial; background:#111; color:#eee; padding:15px; }
-h1 { text-align:center; }
+  <style>
+    body { font-family: Arial; background:#111; color:#eee; padding:15px; }
+    h1 { text-align:center; }
+    button {
+      margin-top:6px;
+      margin-right:6px;
+      padding:6px 10px;
+      border:none;
+      border-radius:6px;
+      background:#4caf50;
+      color:white;
+      cursor:pointer;
+    }
 
-.tabs { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
-.tab { padding:8px 12px; background:#333; border-radius:8px; cursor:pointer; }
-.active { background:#4caf50; }
+    .tabs { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+    .tab { padding:8px 12px; background:#333; border-radius:8px; cursor:pointer; }
+    .active { background:#4caf50; }
 
-.section { background:#1e1e1e; padding:12px; margin-bottom:12px; border-radius:10px; }
-.list { display:flex; flex-direction:column; gap:6px; }
+    .section { background:#1e1e1e; padding:12px; margin-bottom:12px; border-radius:10px; }
+    .list { display:flex; flex-direction:column; gap:6px; }
 
-.summary { background:#222; padding:10px; border-radius:10px; margin-bottom:10px; }
+    .summary { background:#222; padding:10px; border-radius:10px; margin-bottom:10px; }
 
-.progressbar {
-  height:8px; background:#333; border-radius:6px;
-  overflow:hidden; margin:6px 0;
-}
-.progressfill {
-  height:100%; background:#4caf50;
-}
+    .progressbar {
+      height:8px; background:#333; border-radius:6px;
+      overflow:hidden; margin:6px 0;
+    }
+    .progressfill {
+      height:100%; background:#4caf50;
+    }
 
-.small { font-size:12px; opacity:0.7; }
-.highlight { border:2px solid #4caf50; }
-</style>
+    .small { font-size:12px; opacity:0.7; }
+    .highlight { border:2px solid #4caf50; }
+
+    .hunt.completed { opacity: 0.5; }
+
+    .hunt.completed button:not(.touchable) { pointer-events: none; }
+  </style>
 
 </head>
 
@@ -43,135 +57,339 @@ h1 { text-align:center; }
   <div class="tab" onclick="setTab('firered', this)">🔥 FireRed</div>
   <div class="tab" onclick="setTab('leafgreen', this)">🍃 LeafGreen</div>
   <div class="tab" onclick="setTab('emerald', this)">🟢 Emerald</div>
+  <div class="tab" onclick="setTab('shiny', this)">✨ Shiny</div>
 </div>
 
 <div class="summary">
   <div>🎮 Game Progress: <span id="gameProgress">0</span>%</div>
   <div class="progressbar"><div id="gameBar" class="progressfill"></div></div>
 
-  <div>📘 Dex Progress: <span id="dexProgress">0</span>%</div>
+  <div>📘 Dex Progress: <span id="dexProgress">0</span>% <span id="dexProgressAmount"></span></div>
+  <div id="dex-count" class="small"></div>
   <div class="progressbar"><div id="dexBar" class="progressfill"></div></div>
 
-  <div id="missing" class="small"></div>
+  <div id="nationalDexStatus" class="small"></div>
+
   <div id="recommendation" class="small"></div>
 </div>
 
 <div id="app"></div>
 
 <script>
-let currentTab = "game";
+  let currentTab = "game";
 
-// --- FULL NAMES ---
-const names = {};
-const fullList = [
-"Bulbasaur","Ivysaur","Venusaur","Charmander","Charmeleon","Charizard","Squirtle","Wartortle","Blastoise",
-"Caterpie","Metapod","Butterfree","Weedle","Kakuna","Beedrill","Pidgey","Pidgeotto","Pidgeot","Rattata","Raticate",
-"Spearow","Fearow","Ekans","Arbok","Pikachu","Raichu","Sandshrew","Sandslash","Nidoran♀","Nidorina","Nidoqueen",
-"Nidoran♂","Nidorino","Nidoking","Clefairy","Clefable","Vulpix","Ninetales","Jigglypuff","Wigglytuff","Zubat","Golbat",
-"Oddish","Gloom","Vileplume","Paras","Parasect","Venonat","Venomoth","Diglett","Dugtrio","Meowth","Persian",
-"Psyduck","Golduck","Mankey","Primeape","Growlithe","Arcanine","Poliwag","Poliwhirl","Poliwrath","Abra","Kadabra","Alakazam",
-"Machop","Machoke","Machamp","Bellsprout","Weepinbell","Victreebel","Tentacool","Tentacruel","Geodude","Graveler","Golem",
-"Ponyta","Rapidash","Slowpoke","Slowbro","Magnemite","Magneton","Farfetch'd","Doduo","Dodrio","Seel","Dewgong","Grimer","Muk",
-"Shellder","Cloyster","Gastly","Haunter","Gengar","Onix","Drowzee","Hypno","Krabby","Kingler","Voltorb","Electrode",
-"Exeggcute","Exeggutor","Cubone","Marowak","Hitmonlee","Hitmonchan","Lickitung","Koffing","Weezing","Rhyhorn","Rhydon",
-"Chansey","Tangela","Kangaskhan","Horsea","Seadra","Goldeen","Seaking","Staryu","Starmie","Mr. Mime","Scyther","Jynx",
-"Electabuzz","Magmar","Pinsir","Tauros","Magikarp","Gyarados","Lapras","Ditto","Eevee","Vaporeon","Jolteon","Flareon",
-"Porygon","Omanyte","Omastar","Kabuto","Kabutops","Aerodactyl","Snorlax","Articuno","Zapdos","Moltres","Dratini","Dragonair","Dragonite","Mewtwo","Mew",
-"Chikorita","Bayleef","Meganium","Cyndaquil","Quilava","Typhlosion","Totodile","Croconaw","Feraligatr","Sentret","Furret","Hoothoot","Noctowl",
-"Ledyba","Ledian","Spinarak","Ariados","Crobat","Chinchou","Lanturn","Pichu","Cleffa","Igglybuff","Togepi","Togetic","Natu","Xatu",
-"Mareep","Flaaffy","Ampharos","Bellossom","Marill","Azumarill","Sudowoodo","Politoed","Hoppip","Skiploom","Jumpluff","Aipom",
-"Sunkern","Sunflora","Yanma","Wooper","Quagsire","Espeon","Umbreon","Murkrow","Slowking","Misdreavus","Unown","Wobbuffet",
-"Girafarig","Pineco","Forretress","Dunsparce","Gligar","Steelix","Snubbull","Granbull","Qwilfish","Scizor","Shuckle","Heracross",
-"Sneasel","Teddiursa","Ursaring","Slugma","Magcargo","Swinub","Piloswine","Corsola","Remoraid","Octillery","Delibird",
-"Mantine","Skarmory","Houndour","Houndoom","Kingdra","Phanpy","Donphan","Porygon2","Stantler","Smeargle","Tyrogue",
-"Hitmontop","Smoochum","Elekid","Magby","Miltank","Blissey","Raikou","Entei","Suicune","Larvitar","Pupitar","Tyranitar",
-"Lugia","Ho-Oh","Celebi",
-"Treecko","Grovyle","Sceptile","Torchic","Combusken","Blaziken","Mudkip","Marshtomp","Swampert",
-"Poochyena","Mightyena","Zigzagoon","Linoone","Wurmple","Silcoon","Beautifly","Cascoon","Dustox",
-"Lotad","Lombre","Ludicolo","Seedot","Nuzleaf","Shiftry","Taillow","Swellow","Wingull","Pelipper",
-"Ralts","Kirlia","Gardevoir","Surskit","Masquerain","Shroomish","Breloom","Slakoth","Vigoroth","Slaking",
-"Nincada","Ninjask","Shedinja","Whismur","Loudred","Exploud","Makuhita","Hariyama","Azurill","Nosepass",
-"Skitty","Delcatty","Sableye","Mawile","Aron","Lairon","Aggron","Meditite","Medicham","Electrike","Manectric",
-"Plusle","Minun","Volbeat","Illumise","Roselia","Gulpin","Swalot","Carvanha","Sharpedo","Wailmer","Wailord",
-"Numel","Camerupt","Torkoal","Spoink","Grumpig","Spinda","Trapinch","Vibrava","Flygon","Cacnea","Cacturne",
-"Swablu","Altaria","Zangoose","Seviper","Lunatone","Solrock","Barboach","Whiscash","Corphish","Crawdaunt",
-"Baltoy","Claydol","Lileep","Cradily","Anorith","Armaldo","Feebas","Milotic","Castform","Kecleon",
-"Shuppet","Banette","Duskull","Dusclops","Tropius","Chimecho","Absol","Wynaut","Snorunt","Glalie",
-"Spheal","Sealeo","Walrein","Clamperl","Huntail","Gorebyss","Relicanth","Luvdisc",
-"Bagon","Shelgon","Salamence","Beldum","Metang","Metagross",
-"Regirock","Regice","Registeel","Latias","Latios","Kyogre","Groudon","Rayquaza","Jirachi","Deoxys"
-];
+  // --- FULL NAMES ---
+  const names = {};
+  const fullList = [
+    "Bulbasaur","Ivysaur","Venusaur","Charmander","Charmeleon","Charizard","Squirtle","Wartortle","Blastoise",
+    "Caterpie","Metapod","Butterfree","Weedle","Kakuna","Beedrill","Pidgey","Pidgeotto","Pidgeot","Rattata","Raticate",
+    "Spearow","Fearow","Ekans","Arbok","Pikachu","Raichu","Sandshrew","Sandslash","Nidoran♀","Nidorina","Nidoqueen",
+    "Nidoran♂","Nidorino","Nidoking","Clefairy","Clefable","Vulpix","Ninetales","Jigglypuff","Wigglytuff","Zubat","Golbat",
+    "Oddish","Gloom","Vileplume","Paras","Parasect","Venonat","Venomoth","Diglett","Dugtrio","Meowth","Persian",
+    "Psyduck","Golduck","Mankey","Primeape","Growlithe","Arcanine","Poliwag","Poliwhirl","Poliwrath","Abra","Kadabra","Alakazam",
+    "Machop","Machoke","Machamp","Bellsprout","Weepinbell","Victreebel","Tentacool","Tentacruel","Geodude","Graveler","Golem",
+    "Ponyta","Rapidash","Slowpoke","Slowbro","Magnemite","Magneton","Farfetch'd","Doduo","Dodrio","Seel","Dewgong","Grimer","Muk",
+    "Shellder","Cloyster","Gastly","Haunter","Gengar","Onix","Drowzee","Hypno","Krabby","Kingler","Voltorb","Electrode",
+    "Exeggcute","Exeggutor","Cubone","Marowak","Hitmonlee","Hitmonchan","Lickitung","Koffing","Weezing","Rhyhorn","Rhydon",
+    "Chansey","Tangela","Kangaskhan","Horsea","Seadra","Goldeen","Seaking","Staryu","Starmie","Mr. Mime","Scyther","Jynx",
+    "Electabuzz","Magmar","Pinsir","Tauros","Magikarp","Gyarados","Lapras","Ditto","Eevee","Vaporeon","Jolteon","Flareon",
+    "Porygon","Omanyte","Omastar","Kabuto","Kabutops","Aerodactyl","Snorlax","Articuno","Zapdos","Moltres","Dratini","Dragonair","Dragonite","Mewtwo","Mew",
+    "Chikorita","Bayleef","Meganium","Cyndaquil","Quilava","Typhlosion","Totodile","Croconaw","Feraligatr","Sentret","Furret","Hoothoot","Noctowl",
+    "Ledyba","Ledian","Spinarak","Ariados","Crobat","Chinchou","Lanturn","Pichu","Cleffa","Igglybuff","Togepi","Togetic","Natu","Xatu",
+    "Mareep","Flaaffy","Ampharos","Bellossom","Marill","Azumarill","Sudowoodo","Politoed","Hoppip","Skiploom","Jumpluff","Aipom",
+    "Sunkern","Sunflora","Yanma","Wooper","Quagsire","Espeon","Umbreon","Murkrow","Slowking","Misdreavus","Unown","Wobbuffet",
+    "Girafarig","Pineco","Forretress","Dunsparce","Gligar","Steelix","Snubbull","Granbull","Qwilfish","Scizor","Shuckle","Heracross",
+    "Sneasel","Teddiursa","Ursaring","Slugma","Magcargo","Swinub","Piloswine","Corsola","Remoraid","Octillery","Delibird",
+    "Mantine","Skarmory","Houndour","Houndoom","Kingdra","Phanpy","Donphan","Porygon2","Stantler","Smeargle","Tyrogue",
+    "Hitmontop","Smoochum","Elekid","Magby","Miltank","Blissey","Raikou","Entei","Suicune","Larvitar","Pupitar","Tyranitar",
+    "Lugia","Ho-Oh","Celebi",
+    "Treecko","Grovyle","Sceptile","Torchic","Combusken","Blaziken","Mudkip","Marshtomp","Swampert",
+    "Poochyena","Mightyena","Zigzagoon","Linoone","Wurmple","Silcoon","Beautifly","Cascoon","Dustox",
+    "Lotad","Lombre","Ludicolo","Seedot","Nuzleaf","Shiftry","Taillow","Swellow","Wingull","Pelipper",
+    "Ralts","Kirlia","Gardevoir","Surskit","Masquerain","Shroomish","Breloom","Slakoth","Vigoroth","Slaking",
+    "Nincada","Ninjask","Shedinja","Whismur","Loudred","Exploud","Makuhita","Hariyama","Azurill","Nosepass",
+    "Skitty","Delcatty","Sableye","Mawile","Aron","Lairon","Aggron","Meditite","Medicham","Electrike","Manectric",
+    "Plusle","Minun","Volbeat","Illumise","Roselia","Gulpin","Swalot","Carvanha","Sharpedo","Wailmer","Wailord",
+    "Numel","Camerupt","Torkoal","Spoink","Grumpig","Spinda","Trapinch","Vibrava","Flygon","Cacnea","Cacturne",
+    "Swablu","Altaria","Zangoose","Seviper","Lunatone","Solrock","Barboach","Whiscash","Corphish","Crawdaunt",
+    "Baltoy","Claydol","Lileep","Cradily","Anorith","Armaldo","Feebas","Milotic","Castform","Kecleon",
+    "Shuppet","Banette","Duskull","Dusclops","Tropius","Chimecho","Absol","Wynaut","Snorunt","Glalie",
+    "Spheal","Sealeo","Walrein","Clamperl","Huntail","Gorebyss","Relicanth","Luvdisc",
+    "Bagon","Shelgon","Salamence","Beldum","Metang","Metagross",
+    "Regirock","Regice","Registeel","Latias","Latios","Kyogre","Groudon","Rayquaza","Jirachi","Deoxys"
+  ];
 
-fullList.forEach((n,i)=>names[i+1]=n);
+  fullList.forEach((n,i)=>names[i+1]=n);
 
-// --- DATA ---
-const tradeOnly = [37,69,79,120,127];
-const fireRedList = Array.from({length:151},(_,i)=>i+1).filter(n=>!tradeOnly.includes(n));
-const leafGreenList = tradeOnly;
-const emeraldList = Array.from({length:235},(_,i)=>i+152);
+  // --- DATA ---
+  const tradeOnly = [37,69,79,120,127];
+  const fireRedList = Array.from({length:151},(_,i)=>i+1).filter(n=>!tradeOnly.includes(n));
+  const leafGreenList = tradeOnly;
+  const emeraldList = Array.from({length:235},(_,i)=>i+152);
+  const legendaryRequirements = {
+    "Articuno": { badges: 5 },
+    "Zapdos": { badges: 5 },
+    "Moltres": { badges: 7 },
+    "Mewtwo": { badges: 8, champion: true, sevii: true, national: true, cave: true },
+    "Raikou / Entei / Suicune": { badges: 8, champion: true }
+  };
 
-// --- GAME SECTIONS ---
-const gameSections = [
-  {name:"Main Story", items:["Brock","Misty","Lieutenant Surge","Erika","Koga","Sabrina","Blaine","Giovanni","Elite Four","Champion"]},
-  {name:"Sevii Islands", items:[
-    "One Island - Celio","One Island - Mt Ember",
-    "Two Island - Lostelle","Two Island - Berry Forest",
-    "Three Island - Bikers","Three Island - Trainers",
-    "Four Island - Lorelei","Four Island - Icefall Cave",
-    "Five Island - Rocket Warehouse","Five Island - Sapphire",
-    "Six Island - Ruin Valley","Six Island - Dotted Hole",
-    "Seven Island - Trainer Tower","Seven Island - Lost Cave",
-    "Return Ruby","Return Sapphire"
-  ]},
-  {name:"Legendaries", items:["Mewtwo","Articuno","Zapdos","Moltres","Raikou / Entei / Suicune"]},
-  {name:"Elite Four Rematch", items:["Rematch"]}
-];
+  // --- GAME SECTIONS ---
+  const gameSections = [
+    {name:"Main Story", items:["Brock","Misty","Lieutenant Surge","Erika","Koga","Sabrina","Blaine","Giovanni","Elite Four","Champion","Elite Four Rematch"]},
+    {
+      name:"Sevii Islands",
+      items:[
+        // Early (7 badges)
+        "One Island - Celio",
+        "One Island - Mt Ember",
+        "Two Island - Lostelle",
+        "Two Island - Berry Forest",
+        "Three Island - Bikers",
+        "Three Island - Trainers",
 
-function setTab(tab, el){
-  currentTab = tab;
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-  el.classList.add("active");
-  render();
-}
+        // Late (post game)
+        "Four Island - Lorelei",
+        "Four Island - Icefall Cave",
+        "Five Island - Rocket Warehouse",
+        "Five Island - Sapphire",
+        "Six Island - Ruin Valley",
+        "Six Island - Dotted Hole",
+        "Seven Island - Trainer Tower",
+        "Seven Island - Lost Cave",
+        "Return Ruby",
+        "Return Sapphire",
+        "Unlock Cerulean Cave"
+      ]
+    },
+    {name:"Legendaries", items:["Mewtwo","Articuno","Zapdos","Moltres","Raikou / Entei / Suicune"]}
+  ];
 
-function save(id,val){ localStorage.setItem(id,val); }
-function load(id){ return localStorage.getItem(id)==="true"; }
+  function setTab(tab, el){
+    currentTab = tab;
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    el.classList.add("active");
+    render();
+  }
 
-function render(){
-  const app = document.getElementById("app");
-  app.innerHTML="";
+  function save(id,val){ localStorage.setItem(id,val); }
+  function load(id){ return localStorage.getItem(id)==="true"; }
 
-  if(currentTab === "game"){
+  function getShinyData(){
+    return JSON.parse(localStorage.getItem("shinyHunts") || "{}");
+  }
 
-    // find lowest
-    let lowest = null;
+  function saveShinyData(data){
+    localStorage.setItem("shinyHunts", JSON.stringify(data));
+  }
 
-    gameSections.forEach((s,i)=>{
-      let checked = 0;
-      s.items.forEach((_,j)=>{ if(load(`g-${i}-${j}`)) checked++; });
+  function startShiny(){
+    const id = document.getElementById("shinySelect").value;
+    const data = getShinyData();
 
-      let pct = checked / s.items.length;
+    if(!data[id]){
+      data[id] = { count: 0, completed: false };
+    }
 
-      if(pct < 1 && (lowest === null || pct < lowest.pct)){
-        lowest = { index: i, name: s.name, pct };
+    saveShinyData(data);
+    render();
+  }
+
+  let searchShinyTimeout = null;
+  function searchShiny(search, instant = false){
+    if(searchShinyTimeout) clearTimeout(searchShinyTimeout);
+
+    searchShinyTimeout = setTimeout(() => {
+      const currentUrl = new URL(window.location);
+      currentUrl.searchParams.set("shiny-search", search.toLowerCase());
+
+      window.history.pushState({"shiny-search":search.toLowerCase()},"", currentUrl);
+
+      render();
+    }, instant ? 0 : 500);
+  }
+
+  function getSearchShiny(){
+    let params = new URLSearchParams(document.location.search);
+
+    return params.get("shiny-search") ?? '';
+  }
+
+  function toggleComplete(id){
+    const data = getShinyData();
+
+    data[id].completed = !data[id].completed;
+
+    saveShinyData(data);
+    render();
+  }
+
+  function addEncounter(id){
+    const data = getShinyData();
+
+    data[id].count++;
+
+    saveShinyData(data);
+    render();
+  }
+
+  let shinySetEncounterTimeout = null;
+  function setEncounter(id, value){
+    if(shinySetEncounterTimeout) clearTimeout(shinySetEncounterTimeout);
+
+    shinySetEncounterTimeout = setTimeout(() => {
+      const data = getShinyData();
+
+      let num = parseInt(value);
+
+      if(isNaN(num) || num < 0){
+        num = 0;
+      }
+
+      data[id].count = num;
+
+      saveShinyData(data);
+      render();
+    }, 500);
+  }
+
+  function resetHunt(id){
+    const confirmed = confirm("Er du sikker på du vil reset din shiny hunt?");
+
+    if(!confirmed) return;
+
+    const data = getShinyData();
+
+    data[id].count = 0;
+
+    saveShinyData(data);
+    render();
+  }
+
+  function deleteHunt(id){
+    const confirmed = confirm(`Delete hunt for ${names[id]}?`);
+
+    if(!confirmed) return;
+
+    const data = getShinyData();
+
+    delete data[id];
+
+    saveShinyData(data);
+    render();
+  }
+
+  function isTheSame(a, b){
+    return a.toLowerCase() === b.toLowerCase();
+  }
+
+  function getKantoDexCount(){
+    let count = 0;
+
+    for(let i = 1; i <= 151; i++){
+      if(load(`dex-${i}`)) count++;
+    }
+
+    return count;
+  }
+
+  function getBadgeCount(){
+    let badges = [
+      "Brock","Misty","Lieutenant Surge","Erika",
+      "Koga","Sabrina","Blaine","Giovanni"
+    ];
+
+    let count = 0;
+
+    gameSections[0].items.forEach((name, i)=>{
+      if(badges.includes(name) && load(`g-0-${i}`)){
+        count++;
       }
     });
 
-    gameSections.forEach((s,i)=>{
+    return count;
+  }
 
-      let checked=0;
-      s.items.forEach((_,j)=>{ if(load(`g-${i}-${j}`)) checked++; });
+  function isChampionBeaten(){
+    return load("g-0-9"); // Champion index
+  }
 
-      let pct = checked / s.items.length;
+  function isSeviiDone(){
+    const seviiIndex = gameSections.findIndex(s => s.name === "Sevii Islands");
 
-      const div=document.createElement("div");
-      div.className="section";
+    if(seviiIndex === -1) return false;
 
-      if(lowest && lowest.index === i){
-        div.classList.add("highlight");
-      }
+    const section = gameSections[seviiIndex];
 
-      div.innerHTML=`
+    // find "Return Sapphire"
+    const itemIndex = section.items.findIndex(i => i === "Return Sapphire");
+
+    if(itemIndex === -1) return false;
+
+    return load(`g-${seviiIndex}-${itemIndex}`);
+  }
+
+  function hasSevenBadges(){
+    return getBadgeCount() >= 7;
+  }
+
+  function hasNationalDex(){
+    return isChampionBeaten() && getKantoDexCount() >= 60;
+  }
+
+  function isCeruleanCaveUnlocked(){
+    const seviiIndex = gameSections.findIndex(s => s.name === "Sevii Islands");
+
+    const section = gameSections[seviiIndex];
+    const index = section.items.findIndex(i => i === "Unlock Cerulean Cave");
+
+    return load(`g-${seviiIndex}-${index}`);
+  }
+
+  function render(){
+    const app = document.getElementById("app");
+    app.innerHTML="";
+
+    if(currentTab === "game"){
+
+      // find lowest
+      let lowest = null;
+
+      gameSections.forEach((s,i)=>{
+        let checked = 0;
+        s.items.forEach((_,j)=>{ if(load(`g-${i}-${j}`)) checked++; });
+
+        let pct = checked / s.items.length;
+        let isLockedSection = false;
+
+        if(s.name === "Sevii Islands" && !hasSevenBadges()){
+          isLockedSection = true;
+        }
+
+        if(s.name === "Legendaries" && !isChampionBeaten()){
+          isLockedSection = true;
+        }
+
+        if(!isLockedSection && pct < 1 && (lowest === null || pct < lowest.pct)){
+          lowest = { index: i, name: s.name, pct };
+        }
+      });
+
+      gameSections.forEach((s,i)=>{
+
+        let checked=0;
+        s.items.forEach((_,j)=>{ if(load(`g-${i}-${j}`)) checked++; });
+
+        let pct = checked / s.items.length;
+
+        const div=document.createElement("div");
+        div.className="section";
+
+        if(lowest && lowest.index === i){
+          div.classList.add("highlight");
+        }
+
+        div.innerHTML=`
         <h3>${s.name}</h3>
         <div class="small">${Math.floor(pct*100)}%</div>
         <div class="progressbar">
@@ -179,67 +397,275 @@ function render(){
         </div>
       `;
 
-      const list=document.createElement("div");
-      list.className="list";
+        const list=document.createElement("div");
+        list.className="list";
 
-      s.items.forEach((item,j)=>{
-        const id=`g-${i}-${j}`;
+        const badgeCount = getBadgeCount();
+        const isChampion = isChampionBeaten();
+        const seviiDone = isSeviiDone();
+        const isSevii = s.name === "Sevii Islands";
+
+        s.items.forEach((item,j)=>{
+          const id=`g-${i}-${j}`;
+          const label=document.createElement("label");
+          const cb=document.createElement("input");
+
+          cb.type="checkbox";
+          cb.checked=load(id);
+
+          let req = legendaryRequirements[item];
+          let locked = false;
+
+          if(isSevii){
+
+            if(
+              item.startsWith("One Island") ||
+              item.startsWith("Two Island") ||
+              item.startsWith("Three Island")
+            ){
+              if(!hasSevenBadges()){
+                locked = true;
+                label.append(" (requires 7 badges)");
+              }
+            }
+
+            else if(item === "Unlock Cerulean Cave"){
+              if(!hasNationalDex() || !isSeviiDone()){
+                locked = true;
+                label.append(" (requires National Dex + Ruby/Sapphire)");
+              }
+            }
+
+            else{
+              if(!hasNationalDex()){
+                locked = true;
+                label.append(" (requires National Dex)");
+              }
+            }
+          }
+
+          if(req){
+            // Badge krav
+            if(req.badges && badgeCount < req.badges){
+              locked = true;
+            }
+
+            // Champion krav (VIGTIG FIX)
+            if(req.champion && !isChampion){
+              locked = true;
+            }
+
+            if(req.sevii && !seviiDone){
+              locked = true;
+            }
+
+            if(req.national && !hasNationalDex()){
+              locked = true;
+            }
+
+            if(req.cave && !isCeruleanCaveUnlocked()){
+              locked = true;
+            }
+          }
+
+          if(locked){
+            cb.disabled = true;
+            label.style.opacity = "0.5";
+          }
+
+          cb.onchange=()=>{save(id,cb.checked); render();};
+
+          if(req){
+            let text = `${item} (requires ${req.badges} badges`;
+
+            if(req.champion) text += " + Champion";
+            if(req.national) text += " + National Dex";
+            if(req.sevii) text += " + Sevii complete";
+
+            text += ")";
+
+            label.prepend(" "+text);
+          } else {
+            label.prepend(" "+item);
+          }
+
+          label.prepend(cb);
+          list.appendChild(label);
+        });
+
+        div.appendChild(list);
+        app.appendChild(div);
+      });
+
+      document.getElementById("recommendation").innerText = lowest ? `👉 Next focus: ${lowest.name}` : "Done 🎉";
+    } else if(currentTab === "shiny"){
+
+      const urlSearch = getSearchShiny();
+      const data = getShinyData();
+
+      // --- START HUNT ---
+      const div=document.createElement("div");
+      div.className="section";
+
+      div.innerHTML=`
+    <h3>Start Shiny Hunt</h3>
+    <select id="shinySelect">
+      ${Object.entries(names).filter(([id,name]) => ! Object.keys(data).includes(String(id))).map(([id,name]) =>
+              `<option value="${id}">#${id} ${name}</option>`
+      ).join("")}
+    </select>
+    <button onclick="startShiny()">Start Hunt</button>
+  `;
+
+      app.appendChild(div);
+
+      // --- ACTIVE HUNTS ---
+      const list=document.createElement("div");
+      list.className="section";
+      list.innerHTML=`<h3>Your Hunts</h3><input type='text' placeholder='Search Pokémon...' oninput='searchShiny(this.value)' id='shinySearch' value='${urlSearch}' style='margin-bottom: 12px;'/>`;
+      list.innerHTML=`
+<h3>Your Hunts</h3>
+<div>
+  <input type='text' placeholder='Search Pokémon...' oninput='searchShiny(this.value)' id='shinySearch' value='${urlSearch}' style='margin-bottom: 12px;'/>
+  <select id="shinyFilter" onchange="searchShiny(this.value, true)">
+    <option value="">All Pokémon</option>
+    ${Object.entries(names).filter(([id,name]) => Object.keys(data).includes(String(id))).map(([id,name]) =>
+              `<option value="${name}" ${isTheSame(name, urlSearch) ? 'selected="selected"' : ''}>#${id} ${name}</option>`
+      ).join("")}
+  </select>
+</div>
+`;
+
+      Object.entries(data)
+        .filter(([id]) => names[id].toLowerCase().includes(urlSearch))
+        .sort(([aId, a], [bId, b]) => {
+          // Completed hunts go to the bottom
+          if (a.completed && !b.completed) return 1;
+          if (!a.completed && b.completed) return -1;
+
+          // Then sort by count (highest first)
+          return b.count - a.count;
+        })
+        .forEach(([id, hunt])=>{
+
+          let odds = 1 - Math.pow((8191/8192), hunt.count);
+          let percent = (odds * 100).toFixed(2);
+
+          const el=document.createElement("div");
+          el.classList.add('hunt');
+
+          if (hunt.completed) {
+            el.classList.add('completed');
+          } else {
+            el.classList.remove('completed');
+          }
+
+          el.innerHTML=`
+  <strong>#${id} ${names[id]}</strong><br>
+
+  Encounters:
+  <input type="number" value="${hunt.count}"
+    oninput="setEncounter(${id}, this.value)" style="width:80px"><br>
+
+  Odds: ${percent}%<br>
+
+  <button onclick="addEncounter(${id})">+1</button>
+  <button onclick="resetHunt(${id})">Reset</button>
+  <button onclick="toggleComplete(${id})" class="touchable">
+    ${hunt.completed ? "Undo ✅" : "Complete 🎉"}
+  </button>
+  <button onclick="deleteHunt(${id})">Delete 🗑️</button>
+  <hr>
+`;
+
+        list.appendChild(el);
+      });
+
+      app.appendChild(list);
+    }
+    else {
+
+      let list = [];
+      if(currentTab === "firered") list = fireRedList;
+      if(currentTab === "leafgreen") list = leafGreenList;
+      if(currentTab === "emerald") list = emeraldList;
+
+      const div=document.createElement("div");
+      div.className="section";
+      div.innerHTML=`<h3>${currentTab.toUpperCase()} Dex</h3>`;
+
+      const listEl=document.createElement("div");
+      listEl.className="list";
+
+      list.forEach(n=>{
+        const id=`dex-${n}`;
         const label=document.createElement("label");
         const cb=document.createElement("input");
 
         cb.type="checkbox";
         cb.checked=load(id);
-        cb.onchange=()=>{save(id,cb.checked); render();};
+        cb.onchange=()=>{save(id,cb.checked); update();};
 
         label.appendChild(cb);
-        label.append(" "+item);
-        list.appendChild(label);
+        label.append(` #${n} ${names[n]}`);
+        listEl.appendChild(label);
       });
 
-      div.appendChild(list);
+      div.appendChild(listEl);
       app.appendChild(div);
-    });
+    }
 
-    document.getElementById("recommendation").innerText =
-      lowest ? `👉 Next focus: ${lowest.name}` : "Done 🎉";
+    update();
   }
 
-  update();
-}
+  function update(){
+    let gameTotal=0, gameChecked=0;
 
-function update(){
-  let gameTotal=0, gameChecked=0;
-
-  gameSections.forEach((s,i)=>{
-    s.items.forEach((_,j)=>{
-      gameTotal++;
-      if(load(`g-${i}-${j}`)) gameChecked++;
+    gameSections.forEach((s,i)=>{
+      s.items.forEach((_,j)=>{
+        gameTotal++;
+        if(load(`g-${i}-${j}`)) gameChecked++;
+      });
     });
-  });
 
-  let dexChecked=0;
-  for(let i=1;i<=386;i++){
-    if(load(`dex-${i}`)) dexChecked++;
+    let dexChecked=0;
+    for(let i=1;i<=386;i++){
+      if(load(`dex-${i}`)) dexChecked++;
+    }
+
+    let gamePct = ((gameChecked/gameTotal)*100).toFixed(1);
+    let dexPct = ((dexChecked/386)*100).toFixed(1);
+
+    document.getElementById("gameProgress").innerText = gamePct;
+    document.getElementById("dexProgress").innerText = dexPct;
+    document.getElementById("dexProgressAmount").innerText = '(' + dexChecked + '/' + 386 + ')';
+
+    document.getElementById("gameBar").style.width = gamePct+"%";
+    document.getElementById("dexBar").style.width = dexPct+"%";
+
+    const foundFR = fireRedList.filter(n=>load(`dex-${n}`)).length;
+    const foundLG = leafGreenList.filter(n=>load(`dex-${n}`)).length;
+    const foundEM = emeraldList.filter(n=>load(`dex-${n}`)).length;
+
+    let missingFR = foundFR + ' / ' + fireRedList.length + ' (' + (foundFR / fireRedList.length * 100).toFixed(1) + '%)';
+    let missingLG = foundLG + ' / ' + leafGreenList.length + ' (' + (foundLG / leafGreenList.length * 100).toFixed(1) + '%)';
+    let missingEM = foundEM + ' / ' + emeraldList.length + ' (' + (foundEM / emeraldList.length * 100).toFixed(1) + '%)';
+
+    document.getElementById("dex-count").innerHTML =
+            `FireRed: ${missingFR}<br />LeafGreen: ${missingLG}<br />Emerald: ${missingEM}`;
+
+    const kantoCount = getKantoDexCount();
+    const hasDex = hasNationalDex();
+
+    if (isChampionBeaten()) {
+      document.getElementById("nationalDexStatus").innerText =
+              `National Dex: ${kantoCount}/60 ${hasDex ? "✅" : "❌"}`;
+    } else {
+        document.getElementById("nationalDexStatus").innerText = `National Dex: ❌ (You need to beat the Champion to unlock the National Dex)`;
+    }
   }
 
-  let gamePct = Math.floor((gameChecked/gameTotal)*100);
-  let dexPct = Math.floor((dexChecked/386)*100);
-
-  document.getElementById("gameProgress").innerText = gamePct;
-  document.getElementById("dexProgress").innerText = dexPct;
-
-  document.getElementById("gameBar").style.width = gamePct+"%";
-  document.getElementById("dexBar").style.width = dexPct+"%";
-
-  let missingFR = fireRedList.filter(n=>!load(`dex-${n}`)).length;
-  let missingLG = leafGreenList.filter(n=>!load(`dex-${n}`)).length;
-  let missingEM = emeraldList.filter(n=>!load(`dex-${n}`)).length;
-
-  document.getElementById("missing").innerText =
-    `Missing → FireRed: ${missingFR} | LeafGreen: ${missingLG} | Emerald: ${missingEM}`;
-}
-
-render();
+  render();
 </script>
 
 </body>
